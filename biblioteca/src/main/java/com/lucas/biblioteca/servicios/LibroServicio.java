@@ -7,6 +7,7 @@ import com.lucas.biblioteca.exceptions.MiException;
 import com.lucas.biblioteca.repositorios.AutorRepositorio;
 import com.lucas.biblioteca.repositorios.EditorialRepositorio;
 import com.lucas.biblioteca.repositorios.LibroRepositorio;
+import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -27,75 +28,87 @@ public class LibroServicio {
     @Autowired
     private EditorialRepositorio editorialRepositorio;
 
+    Logger logger = Logger.getLogger(LibroServicio.class);
+
     @Transactional
-    public void crearLIbro(Long isbn, String titulo, Integer ejemplares, String idAutor, String idEditorial) throws MiException {
+    public void crearLIbro(Long isbn, String titulo, Integer ejemplares, String idAutor, String idEditorial) {
+        try {
+            validate(isbn, titulo, ejemplares, idAutor, idEditorial);
 
-        validate(isbn, titulo, ejemplares, idAutor, idEditorial);
+            Autor autor = autorRepositorio.findById(idAutor).get();
+            Editorial editorial = editorialRepositorio.findById(idEditorial).get();
+            Libro libro = new Libro();
 
-        Autor autor = autorRepositorio.findById(idAutor).get();
-        Editorial editorial = editorialRepositorio.findById(idEditorial).get();
-        Libro libro = new Libro();
+            libro.setTitulo(titulo);
+            libro.setIsbn(isbn);
+            libro.setEjemplares(ejemplares);
+            libro.setAlta(new Date());
 
-        libro.setTitulo(titulo);
-        libro.setIsbn(isbn);
-        libro.setEjemplares(ejemplares);
-        libro.setAlta(new Date());
+            libro.setAutor(autor);
+            libro.setEditorial(editorial);
 
-        libro.setAutor(autor);
-        libro.setEditorial(editorial);
+            libroRepositorio.save(libro);
+        } catch (MiException e) {
+            logger.error(e.getMessage());
 
-        libroRepositorio.save(libro);
+        }
     }
-    public List <Libro> listarLibros () {
 
-        List <Libro> libros = new ArrayList<>();
+    public List<Libro> listarLibros() {
+
+        List<Libro> libros = new ArrayList<>();
         libros = libroRepositorio.findAll();
         return libros;
     }
-    public void modificarLibro(Long isbn, String titulo, String idAutor, String idEditorial, Integer ejemplares) throws MiException {
+    @Transactional
+    public void modificarLibro(Long isbn, String titulo, String idAutor, String idEditorial, Integer ejemplares) {
+        try {
+            validate(isbn, titulo, ejemplares, idAutor, idEditorial);
 
-        validate(isbn, titulo, ejemplares, idAutor, idEditorial);
+            Optional<Libro> respuesta = libroRepositorio.findById(isbn);
+            Optional<Autor> respuestaAutor = autorRepositorio.findById(idAutor);
+            Optional<Editorial> respuestaEditorial = editorialRepositorio.findById(idEditorial);
 
-        Optional<Libro> respuesta = libroRepositorio.findById(isbn);
-        Optional<Autor> respuestaAutor = autorRepositorio.findById(idAutor);
-        Optional<Editorial> respuestaEditorial = editorialRepositorio.findById(idEditorial);
+            Autor autor = new Autor();
+            Editorial editorial = new Editorial();
 
-        Autor autor = new Autor();
-        Editorial editorial = new Editorial();
+            if (respuestaAutor.isPresent()) {
+                autor = respuestaAutor.get();
+            }
+            if (respuestaEditorial.isPresent()) {
+                editorial = respuestaEditorial.get();
+            }
 
-        if (respuestaAutor.isPresent()){
-            autor = respuestaAutor.get();
-        }
-        if (respuestaEditorial.isPresent()){
-            editorial = respuestaEditorial.get();
-        }
+            if (respuesta.isPresent()) {
+                Libro libro = respuesta.get();
+                libro.setTitulo(titulo);
+                libro.setAutor(autor);
+                libro.setEditorial(editorial);
+                libro.setEjemplares(ejemplares);
 
-        if (respuesta.isPresent()){
-            Libro libro = respuesta.get();
-            libro.setTitulo(titulo);
-            libro.setAutor(autor);
-            libro.setEditorial(editorial);
-            libro.setEjemplares(ejemplares);
+                libroRepositorio.save(libro);
 
-            libroRepositorio.save(libro);
-
+            }
+        } catch (MiException e) {
+            logger.error(e.getMessage());
         }
 
     }
+
     private void validate(Long isbn, String titulo, Integer ejemplares, String idAutor, String idEditorial) throws MiException {
-        if(isbn == null){
+        if (isbn == null) {
             throw new MiException("Isbn can't be null");
         }
-        if(titulo.isEmpty() || titulo == null){
+        if (titulo.isEmpty() || titulo == null) {
             throw new MiException("Title can't be null or empty");
         }
-        if(ejemplares == null){
+        if (ejemplares == null) {
             throw new MiException("Ejemplares can't be null");
         }
-        if(idAutor.isEmpty() || idAutor == null){
+        if (idAutor.isEmpty() || idAutor == null) {
             throw new MiException("Autor can't be null or empty");
         }
-        if(idEditorial.isEmpty() || idEditorial == null){
+        if (idEditorial.isEmpty() || idEditorial == null) {
             throw new MiException("Editorial can't be null or empty");
         }
     }
